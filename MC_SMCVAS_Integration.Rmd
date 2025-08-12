@@ -1,0 +1,424 @@
+---
+title: "MC_SMCVAS_integration"
+author: "Hafiz"
+date: "2025-08-11"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readxl) 
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(readr)
+# 1. Read the CSV with proper headers and encoding
+Baseline <- read_excel("Dataset/Baseline.xlsx")
+Cycle_1_LQAS <- read_csv("Dataset/Cycle 1 LQAS.csv")
+Post_MNCHW_Rd1 <-read.csv("Dataset/Post MNCHW Round 1 LQAs.csv")
+
+Baseline<-clean_names(Baseline)
+Cycle_1_LQAS <-clean_names(Cycle_1_LQAS)
+Post_MNCHW_Rd1 <- clean_names(Post_MNCHW_Rd1)
+```
+VAS Coverage across the surveys 
+
+```{r}
+Baseline <- Baseline %>%
+  mutate(
+    Child_AgeMonths = case_when(
+      !is.na(as.numeric(selected_chi_monthe)) ~ as.numeric(selected_chi_monthe),
+      !is.na(as.numeric(selected_chi_age)) ~ as.numeric(selected_chi_age) * 12,
+      TRUE ~ NA_real_
+    )
+  )
+
+freq_df <- Baseline %>%
+  group_by(selected_chi_monthe) %>%
+  summarise(Frequency = n()) %>%
+  mutate(Percentage = round(Frequency / sum(Frequency) * 100, 2))
+
+print(freq_df)
+
+
+Baseline_VAS_anysource <- Baseline %>% 
+  count(did_selected_chi_name_received_vitamin_a_dose_within_the_last_6_months_from_any_source, name = "Frequency") %>% 
+  mutate(Percentage = round((Frequency/sum(Frequency))*100,1))
+
+print(Baseline_VAS_anysource)
+
+Baseline_VAS_MNCHW <-Baseline %>% 
+  filter(!is.na(status_treatment_va_snow)) %>% 
+  count(status_treatment_va_snow, name ="Frequency") %>% 
+  mutate(Percentage = round((Frequency/sum(Frequency))*100,1))
+
+print(Baseline_VAS_MNCHW)
+
+
+Baseline_VAS_MNCHW <-Baseline %>% 
+  filter(!is.na(status_treatment_va_snow)) %>% 
+  count(status_treatment_va_snow, name ="Frequency") %>% 
+  mutate(Percentage = round((Frequency/sum(Frequency))*100,1))
+
+print(Baseline_VAS_MNCHW)
+
+
+```
+# Post MNCHW First Round LQAs (VAS Removed)
+
+```{r}
+PostMNCHW <- Post_MNCHW_Rd1 %>% 
+   mutate(
+    Child_AgeMonths = case_when(
+      !is.na(as.numeric(selected_chi_monthe)) ~ as.numeric(selected_chi_monthe),
+      !is.na(as.numeric(selected_chi_age)) ~ as.numeric(selected_chi_age) * 12,
+      TRUE ~ NA_real_
+    )
+  )
+
+VAS_MNCHW_LQAS_6months <- PostMNCHW %>% 
+  count(status_treatment_vas, name = "Frequency") %>% 
+  mutate(Percentage = round((Frequency/sum(Frequency))*100,1))
+
+print(VAS_MNCHW_LQAS_6months)
+
+VAS_MNCHW_LQAS_SMCVAS <-PostMNCHW %>% 
+  filter(!is.na(status_treatment_va_snow)& status_treatment_va_snow !="") %>% 
+  count(status_treatment_va_snow, name="Frequency") %>% 
+  mutate(Percentage = round((Frequency/sum(Frequency))*100,1))
+
+print(VAS_MNCHW_LQAS_SMCVAS)
+
+Source_VAS_LQAS_SMCVAS <- PostMNCHW %>% 
+  mutate(Source_VAS = case_when(
+    source_vas_last_vas_smcvas == 1  ~ "MNCH week outreach post",
+    source_vas_last_vas_smcvas == 2  ~ "At the health facility",
+    source_vas_last_vas_smcvas == 3  ~ "A Community Drug Distributor came to house",
+    source_vas_last_vas_smcvas == 96 ~ "Others",
+    TRUE ~ NA_character_
+  )) %>% 
+  filter(!is.na(Source_VAS)) %>% 
+  count(Source_VAS, name = "Frequency") %>% 
+  mutate(Percentage = round((Frequency / sum(Frequency)) * 100, 1))
+
+print(Source_VAS_LQAS_SMCVAS)
+
+
+```
+## Adverse reaction during Post MNCHW First Round LQAs (VAS Removed)
+```{r}
+Adverse_reaction <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(vas_adverse_reactions) & vas_adverse_reactions !="") %>% 
+  count(vas_adverse_reactions) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(Adverse_reaction)
+```
+## MNCHW
+```{r}
+Heard_NCHW <- Post_MNCHW_Rd1 %>% 
+  count(mnchw_heard) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(Heard_NCHW)
+```
+```{r}
+# Question: What is your understanding of MNCHW?
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(janitor)
+
+# 0) Clean names to avoid case/punctuation headaches
+df <- Post_MNCHW_Rd1 %>% clean_names()
+
+# 1) Filter to eligible respondents
+d_elig <- df %>% filter(mnchw_heard == "Yes")
+
+# 2) Detect the option columns (1..7, 96)
+mnchw_cols <- d_elig %>%
+  select(matches("^understand_mnchw_(1|2|3|4|5|6|7|96)$")) %>%
+  names()
+
+# 3) Make sure they are numeric 0/1
+d_elig <- d_elig %>%
+  mutate(across(any_of(mnchw_cols), ~ as.numeric(.)))
+
+# 4) Labels keyed by the numeric code (more robust than full colnames)
+labels <- c(
+  "1"  = "Special week: free services for pregnant women & young children",
+  "2"  = "Mothers/caregivers learn to keep children healthy",
+  "3"  = "Children get vaccines, vitamin A, nutrition services",
+  "4"  = "Pregnant women get check-ups & advice",
+  "5"  = "Free surgeries for children",
+  "6"  = "Happens every month",
+  "7"  = "Happens two in a week",
+  "96" = "Other (specify)"
+)
+
+# 5) Tally
+n_base <- nrow(d_elig)
+
+tally <- d_elig %>%
+  summarise(across(all_of(mnchw_cols), ~ sum(. , na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "item", values_to = "count") %>%
+  mutate(
+    code = str_extract(item, "\\d+$"),
+    label = labels[code],
+    pct_of_respondents = round((count / n_base)*100,1)
+  ) %>%
+  arrange(desc(count))
+
+# 6) Optional: % of responses (denominator = total ticks)
+total_ticks <- sum(tally$count)
+tally <- tally %>%
+  mutate(pct_of_responses = round((count / total_ticks)*100,1))
+
+tally
+
+```
+## Service Receipt During July 2025 MNCHW Campaign
+```{r}
+Eli_MNCHW_services <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(mnchw_services_child) & mnchw_services_child !="") %>% 
+  count(mnchw_services_child) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(Eli_MNCHW_services)
+```
+
+## Where Receive Services
+```{r}
+Source_services <- Post_MNCHW_Rd1 %>% 
+  mutate(services = case_when(
+    mnchw_service_channel == 1~ "MNCH week outreach post",
+    mnchw_service_channel == 2~ "At the health facility",
+    mnchw_service_channel == 3~ "A Community Drug Distributor came to house",
+    mnchw_service_channel == 96 ~ "Others",
+    TRUE ~ NA_character_
+  )) %>% 
+  filter(!is.na(services)) %>% 
+  count(services) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+print(Source_services)
+
+
+#VAS MNCHW
+
+VAS_MNCHW <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(status_treatment_va_snow_mnchw) & status_treatment_va_snow_mnchw !="") %>% 
+  count(status_treatment_va_snow_mnchw) %>% 
+  mutate(Percentage = round((n/sum(n))*100,1))
+
+print(VAS_MNCHW)
+```
+## Deworming coverage
+```{r}
+deworming <- Post_MNCHW_Rd1 %>% 
+  count(mnchw_deworming) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(deworming)
+
+# source of deworming
+source_deworming <- Post_MNCHW_Rd1 %>% 
+  mutate(sources_deworm = case_when(
+    mnchw_deworming_source == 1 ~ "MNCH week outreach post",
+    mnchw_deworming_source == 1 ~ "At the health facility",
+    mnchw_deworming_source == 1 ~ "A Community Drug Distributor came to house",
+    mnchw_deworming_source == 1 ~ "Others",
+    TRUE ~ NA_character_
+  )) %>% 
+filter(!is.na(sources_deworm)) %>% 
+  count(sources_deworm) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(source_deworming)
+```
+## Immunization coverage
+```{r}
+immunization <- Post_MNCHW_Rd1 %>% 
+  filter(
+    !is.na(receive_vaccine) & receive_vaccine != ""
+  ) %>% 
+  count(receive_vaccine) %>% 
+  mutate(percentage = round((n / sum(n)) * 100, 1))
+
+print(immunization)
+
+
+```
+```{r}
+library(dplyr)
+library(tidyr)
+library(stringr)
+
+analyze_mnchw_received <- function(df,
+                                   eligibility_col = "receive_vaccine",
+                                   option_pattern  = "^vaccine_received_mnchw_(\\d+)$",
+                                   group_vars = NULL) {
+  # Helper: normalize Yes/1/TRUE
+  is_yes <- function(x) {
+    if (is.logical(x)) return(x)
+    if (is.numeric(x)) return(x == 1)
+    if (is.character(x)) return(tolower(trimws(x)) %in% c("yes","1","true"))
+    rep(FALSE, length(x))
+  }
+
+  # Detect vaccine option columns 1..17
+  m <- str_match(names(df), option_pattern) # [,1]=full, [,2]=number
+  keep <- !is.na(m[,1]) & m[,2] %in% as.character(1:17)
+  if (!any(keep)) {
+    stop("No columns found matching ", option_pattern,
+         ". Expected names like vaccine_received_MNCHW_1 ... _17")
+  }
+  v_df <- tibble(vaccine_code = names(df)[keep],
+                 idx = as.integer(m[keep, 2])) %>%
+         arrange(idx)
+  v_cols <- v_df$vaccine_code
+
+  # Labels for the 17 options
+  idx_to_label <- c(
+    "1"="Hep B 0 (Vaccine at birth)",
+    "2"="OPV 0 (Vaccine at birth)",
+    "3"="BCG (Vaccine at birth)",
+    "4"="OPV 1 (6weeks)",
+    "5"="Penta 1 (6weeks)",
+    "6"="PCV 1 (6weeks)",
+    "7"="Rota 1 (6weeks)",
+    "8"="OPV2 (10weeks)",
+    "9"="Penta 2 (10weeks)",
+    "10"="PCV2 (10weeks)",
+    "11"="Rota 2 (10weeks)",
+    "12"="OPV 3 (14weeks)",
+    "13"="Penta 3 (14weeks)",
+    "14"="PCV3 (14weeks)",
+    "15"="Measles 1 (9months)",
+    "16"="Yellow fever (9months)",
+    "17"="Measles 2 (15months)"
+  )
+  vaccine_labels <- setNames(idx_to_label[as.character(v_df$idx)], v_df$vaccine_code)
+
+  # Eligibility filter
+  if (!eligibility_col %in% names(df)) {
+    candidates <- grep("receive|vacc|mnchw|elig", names(df), ignore.case = TRUE, value = TRUE)
+    stop("Eligibility column `", eligibility_col, "` not found. Similar columns: ",
+         paste(candidates, collapse = ", "))
+  }
+  df_elig <- df %>% filter(is_yes(.data[[eligibility_col]]))
+
+  # If no eligible, return zeros
+  n_eligible <- nrow(df_elig)
+  if (n_eligible == 0) {
+    out <- tibble(
+      vaccine_code = v_cols,
+      vaccine      = unname(vaccine_labels[v_cols]),
+      n            = 0L,
+      pct_children = 0
+    )
+    attr(out, "denominator_n_children") <- 0L
+    return(out)
+  }
+
+  # Normalize option columns to 0/1
+  norm_bin <- function(x) as.integer(is_yes(x))
+  df_norm <- df_elig %>%
+    mutate(across(all_of(v_cols), norm_bin))
+
+  # Grouping (optional)
+  if (is.null(group_vars) || length(group_vars) == 0) {
+    # Overall summary
+    out <- df_norm %>%
+      summarise(across(all_of(v_cols), ~ sum(.x, na.rm = TRUE))) %>%
+      pivot_longer(everything(), names_to = "vaccine_code", values_to = "n") %>%
+      mutate(
+        vaccine      = unname(vaccine_labels[vaccine_code]),
+        pct_children = round(100 * n / n_eligible, 1)
+      ) %>%
+      arrange(desc(n), vaccine_code)
+
+    attr(out, "denominator_n_children") <- n_eligible
+    return(out)
+  } else {
+    # Grouped summary (e.g., by LGA, ward)
+    grp_syms <- rlang::syms(group_vars)
+
+    out <- df_norm %>%
+      group_by(!!!grp_syms) %>%
+      summarise(n_eligible = dplyr::n(),
+                across(all_of(v_cols), ~ sum(.x, na.rm = TRUE)),
+                .groups = "drop") %>%
+      pivot_longer(cols = all_of(v_cols),
+                   names_to = "vaccine_code", values_to = "n") %>%
+      mutate(
+        vaccine      = unname(vaccine_labels[vaccine_code]),
+        pct_children = ifelse(n_eligible > 0, round(100 * n / n_eligible, 1), 0)
+      ) %>%
+      arrange(!!!grp_syms, desc(n), vaccine_code)
+
+    # Attach denominator info per group (as attribute)
+    # (You can also keep n_eligible in the table)
+    return(out)
+  }
+}
+
+
+```
+```{r}
+result <- analyze_mnchw_received(
+  df = Post_MNCHW_Rd1,
+  eligibility_col = "receive_vaccine"  # must equal "Yes"/1/TRUE for eligible rows
+)
+print(result)
+attr(result, "denominator_n_children")  # number of eligible children
+
+```
+## Ineligible VAS
+
+```{r}
+
+VAS_ineli <- Post_MNCHW_Rd1 %>% 
+  filter(selected_chi_monthe <6 & selected_chi_monthe >59) %>% 
+  count(status_coverage_vas) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(VAS_ineli)
+```
+## WCBA Intervention
+```{r}
+wcbs_services <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(mnchw_services_mother)& mnchw_services_mother !="") %>% 
+  count(mnchw_services_mother) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(wcbs_services)
+
+
+wcbs_ifas <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(mnchw_wcba_ifas )& mnchw_wcba_ifas  !="") %>% 
+  count(mnchw_wcba_ifas ) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(wcbs_ifas)
+
+
+wcbs_iptp <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(mnchw_wcba_iptp  )& mnchw_wcba_iptp   !="") %>% 
+  count(mnchw_wcba_iptp  ) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(wcbs_iptp)
+
+
+wcbs_tt <- Post_MNCHW_Rd1 %>% 
+  filter(!is.na(mnchw_wcba_tt   )& mnchw_wcba_tt    !="") %>% 
+  count(mnchw_wcba_tt   ) %>% 
+  mutate(percentage = round((n/sum(n))*100,1))
+
+print(wcbs_tt)
+```
+
+
+

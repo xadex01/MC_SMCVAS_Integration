@@ -1,0 +1,18 @@
+vaccine_code,n,vaccine,pct_children
+immunization_vaccine_17,50,Measles 2 (15 months),44.6
+immunization_vaccine_15,46,Measles 1 (9 months),41.1
+immunization_vaccine_16,37,Yellow fever (9 months),33
+immunization_vaccine_3,15,BCG (Vaccine at birth),13.4
+immunization_vaccine_8,13,OPV 2 (10 weeks),11.6
+immunization_vaccine_9,13,Penta 2 (10 weeks),11.6
+immunization_vaccine_13,12,Penta 3 (14 weeks),10.7
+immunization_vaccine_14,12,PCV 3 (14 weeks),10.7
+immunization_vaccine_10,11,PCV 2 (10 weeks),9.8
+immunization_vaccine_4,10,OPV 1 (6 weeks),8.9
+immunization_vaccine_12,10,OPV 3 (14 weeks),8.9
+immunization_vaccine_2,9,OPV 0 (Vaccine at birth),8
+immunization_vaccine_1,8,Hep B 0 (Vaccine at birth),7.1
+immunization_vaccine_5,7,Penta 1 (6 weeks),6.2
+immunization_vaccine_11,7,Rota 2 (10 weeks),6.2
+immunization_vaccine_6,6,PCV 1 (6 weeks),5.4
+immunization_vaccine_7,4,Rota 1 (6 weeks),3.6
