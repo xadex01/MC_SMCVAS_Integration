@@ -5,7 +5,7 @@ date: "2025-08-11"
 output: html_document
 ---
 
-```{r}
+```{r include=FALSE}
 library(tidyverse)
 library(janitor)
 library(readxl) 
